@@ -1,0 +1,5 @@
+package prueba
+
+annotation KsoapListSerializable {
+	
+}

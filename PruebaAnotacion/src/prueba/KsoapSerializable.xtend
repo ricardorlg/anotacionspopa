@@ -7,6 +7,7 @@ import org.eclipse.xtend.lib.macro.TransformationContext
 import org.eclipse.xtend.lib.macro.declaration.ClassDeclaration
 import org.eclipse.xtend.lib.macro.declaration.InterfaceDeclaration
 import org.eclipse.xtend.lib.macro.declaration.MutableClassDeclaration
+import org.eclipse.xtend.lib.macro.declaration.TypeReference
 import org.ksoap2.serialization.KvmSerializable
 
 @Active(typeof(ksoapSerializableCompilationParticipant))
@@ -21,6 +22,7 @@ class ksoapSerializableCompilationParticipant extends AbstractClassProcessor {
 	override doTransform(MutableClassDeclaration clazz, extension TransformationContext context) {
 		val interfaceUsed = KvmSerializable.newTypeReference
 		clazz.implementedInterfaces = clazz.implementedInterfaces + #[interfaceUsed]
+
 		val s = interfaceUsed.type as InterfaceDeclaration
 		for (method : s.declaredMethods) {
 
@@ -79,12 +81,35 @@ class ksoapSerializableCompilationParticipant extends AbstractClassProcessor {
 					returnType = method.returnType
 					body = [
 						'''
-							throw new UnsupportedOperationException("TODO: auto-generated method stub");
+							switch (arg0){
+									«FOR i : 0 .. clazz.declaredFields.size - 1»
+										«var fieldName = clazz.declaredFields.toList.get(i).simpleName»
+										«var fieldType = clazz.declaredFields.toList.get(i).type»
+											case «i»:	
+											this.«fieldName»=«typeConverted(fieldType.wrapperIfPrimitive)»;
+											break;	
+									«ENDFOR»
+									}
 						''']
 				]
 			}
 		}
 
+	}
+
+	def typeConverted(TypeReference reference) {
+		switch (reference.simpleName) {
+			case "Boolean":
+				"Boolean.parseBoolean(arg1.toString())"
+			case "Long":
+				"Long.parseLong(arg1.toString())"
+			case "Integer":
+				"Integer.parseInt(arg1.toString())"
+			case "String":
+				"arg1.toString()"
+			default:
+				"(" + reference.simpleName + ")" + " arg1"
+		}
 	}
 
 }
