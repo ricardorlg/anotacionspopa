@@ -1,4 +1,4 @@
-package prueba
+package serializables
 
 import org.eclipse.xtend.lib.macro.AbstractClassProcessor
 import org.eclipse.xtend.lib.macro.Active
@@ -9,10 +9,12 @@ import org.eclipse.xtend.lib.macro.declaration.InterfaceDeclaration
 import org.eclipse.xtend.lib.macro.declaration.MutableClassDeclaration
 import org.eclipse.xtend.lib.macro.declaration.TypeReference
 import org.ksoap2.serialization.KvmSerializable
+import java.io.Serializable
 
 @Active(typeof(ksoapSerializableCompilationParticipant))
 annotation KsoapSerializable {
 }
+
 
 class ksoapSerializableCompilationParticipant extends AbstractClassProcessor {
 
@@ -21,7 +23,8 @@ class ksoapSerializableCompilationParticipant extends AbstractClassProcessor {
 
 	override doTransform(MutableClassDeclaration clazz, extension TransformationContext context) {
 		val interfaceUsed = KvmSerializable.newTypeReference
-		clazz.implementedInterfaces = clazz.implementedInterfaces + #[interfaceUsed]
+		val serializable = Serializable.newTypeReference()
+		clazz.implementedInterfaces = clazz.implementedInterfaces + #[interfaceUsed, serializable]
 
 		val s = interfaceUsed.type as InterfaceDeclaration
 		for (method : s.declaredMethods) {
