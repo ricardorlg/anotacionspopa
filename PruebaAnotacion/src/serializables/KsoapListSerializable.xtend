@@ -10,18 +10,20 @@ import org.eclipse.xtend.lib.macro.declaration.TypeReference
 import java.lang.annotation.ElementType
 import java.lang.annotation.Target
 import java.io.Serializable
+import org.ksoap2.serialization.SoapObject
+import org.ksoap2.serialization.SoapPrimitive
 
 @Active(typeof(ksoapListSerializableCompilationParticipant))
 @Target(ElementType.TYPE)
 annotation KsoapListSerializable {
-	String nombre = ""
+	String nombre
 }
 
 class ksoapListSerializableCompilationParticipant extends AbstractClassProcessor {
 
 	override doTransform(MutableClassDeclaration clazz, extension TransformationContext context) {
 		if (clazz.extendedClass == Object.newTypeReference()) {
-			clazz.annotations.head.addError("Debes extender dde Vector")
+			clazz.annotations.head.addError("Debes extender de Vector")
 
 		}
 		val tipo = clazz.extendedClass.actualTypeArguments.get(0)
@@ -29,9 +31,25 @@ class ksoapListSerializableCompilationParticipant extends AbstractClassProcessor
 		val interfaceUsed = KvmSerializable.newTypeReference
 		val serializable = Serializable.newTypeReference()
 
-
 		clazz.implementedInterfaces = clazz.implementedInterfaces + #[interfaceUsed, serializable]
-
+		clazz.addConstructor [
+			addParameter("object", SoapObject.newTypeReference())
+			body = [
+				'''
+					int size = object.getPropertyCount();
+					 for (int i0=0;i0< size;i0++)
+					       {
+					           Object obj = object.getProperty(i0);
+					           if (obj!=null && obj instanceof «toJavaCode(SoapObject.newTypeReference())»)
+					           {
+					               SoapObject j =(SoapObject) object.getProperty(i0);
+					               «toJavaCode(tipo)» j1= «typeConverted(tipo,"j")»;
+					               add(j1);
+					           }
+					       }
+				'''
+			]
+		]
 		val s = interfaceUsed.type as InterfaceDeclaration
 		for (method : s.declaredMethods) {
 
@@ -77,25 +95,32 @@ class ksoapListSerializableCompilationParticipant extends AbstractClassProcessor
 					returnType = method.returnType
 					body = [
 						'''
-							this.add(«typeConverted(tipo)»);
+							this.add(«typeConverted(tipo, "arg1")»);
 						''']
 				]
 			}
 		}
 	}
 
-	def typeConverted(TypeReference reference) {
+	def typeConverted(TypeReference reference, String paramName) {
+
 		switch (reference.simpleName) {
 			case "Boolean":
-				"Boolean.parseBoolean(arg1.toString())"
+				"Boolean.parseBoolean(" + paramName + ".toString())"
 			case "Long":
-				"Long.parseLong(arg1.toString())"
+				"Long.parseLong(" + paramName + ".toString())"
 			case "Integer":
-				"Integer.parseInt(arg1.toString())"
+				"Integer.parseInt(" + paramName + ".toString())"
 			case "String":
-				"arg1.toString()"
+				paramName + ".toString()"
+			case "Float":
+				"Float.parseFloat(" + paramName + ".toString())"
+			case "Double":
+				"Double.parseDouble(" + paramName + ".toString())"
+			case "Date":
+				"utils.DatesUtils.parses(" + paramName + ".toString())"
 			default:
-				"(" + reference.simpleName + ")" + " arg1"
+				"(" + reference.simpleName + ")" + paramName
 		}
 	}
 
@@ -105,7 +130,6 @@ class ksoapListSerializableCompilationParticipant extends AbstractClassProcessor
 			annotationTypeDeclaration == KsoapListSerializable.newTypeReference.type
 		].getValue("nombre")
 
-		print(value)
 		if(value == null) return null
 
 		return value.toString

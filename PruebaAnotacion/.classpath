@@ -3,10 +3,8 @@
 	<classpathentry kind="con" path="org.eclipse.xtend.XTEND_CONTAINER"/>
 	<classpathentry kind="src" path="xtend-gen"/>
 	<classpathentry kind="src" path="src"/>
-	<classpathentry kind="src" path="test"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.7"/>
 	<classpathentry kind="lib" path="libs/ksoap2-android-assembly-3.3.0-jar-with-dependencies.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
-	<classpathentry kind="lib" path="D:/eclipsextend/eclipse/plugins/org.eclipse.xtend.core_2.4.3.v201309030823.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
