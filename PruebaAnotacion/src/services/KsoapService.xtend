@@ -1,6 +1,5 @@
 package services
 
-import com.google.common.collect.ImmutableList
 import org.eclipse.xtend.lib.macro.AbstractClassProcessor
 import org.eclipse.xtend.lib.macro.Active
 import org.eclipse.xtend.lib.macro.TransformationContext

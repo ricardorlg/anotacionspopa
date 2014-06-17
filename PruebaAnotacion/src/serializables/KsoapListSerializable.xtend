@@ -1,17 +1,17 @@
 package serializables
 
+import java.io.Serializable
+import java.lang.annotation.ElementType
+import java.lang.annotation.Target
 import org.eclipse.xtend.lib.macro.AbstractClassProcessor
 import org.eclipse.xtend.lib.macro.Active
 import org.eclipse.xtend.lib.macro.TransformationContext
-import org.eclipse.xtend.lib.macro.declaration.MutableClassDeclaration
-import org.ksoap2.serialization.KvmSerializable
 import org.eclipse.xtend.lib.macro.declaration.InterfaceDeclaration
+import org.eclipse.xtend.lib.macro.declaration.MutableClassDeclaration
 import org.eclipse.xtend.lib.macro.declaration.TypeReference
-import java.lang.annotation.ElementType
-import java.lang.annotation.Target
-import java.io.Serializable
+import org.ksoap2.serialization.KvmSerializable
 import org.ksoap2.serialization.SoapObject
-import org.ksoap2.serialization.SoapPrimitive
+import org.eclipse.xtend.lib.macro.declaration.ClassDeclaration
 
 @Active(typeof(ksoapListSerializableCompilationParticipant))
 @Target(ElementType.TYPE)
@@ -27,13 +27,14 @@ class ksoapListSerializableCompilationParticipant extends AbstractClassProcessor
 
 		}
 		val tipo = clazz.extendedClass.actualTypeArguments.get(0)
+		val tipo2 = tipo.type as ClassDeclaration
+
 		val parameterName = getValue(clazz, context)
 		val interfaceUsed = KvmSerializable.newTypeReference
 		val serializable = Serializable.newTypeReference()
 
 		clazz.implementedInterfaces = clazz.implementedInterfaces + #[interfaceUsed, serializable]
 
-		/*
 		clazz.addConstructor [
 			addParameter("object", SoapObject.newTypeReference())
 			body = [
@@ -45,13 +46,17 @@ class ksoapListSerializableCompilationParticipant extends AbstractClassProcessor
 					           if (obj!=null && obj instanceof «toJavaCode(SoapObject.newTypeReference())»)
 					           {
 					               SoapObject j =(SoapObject) object.getProperty(i0);
-					               «toJavaCode(tipo)» j1= «typeConverted(tipo,"j")»;
+					               «IF tipo2.findAnnotation(KsoapSerializable.newTypeReference().type) != null»
+					               	«toJavaCode(tipo)» j1= new «tipo.simpleName»(j);
+					               «ELSE»
+					               	«toJavaCode(tipo)» j1= «typeConverted(tipo, "j")»;
+					               «ENDIF»
 					               add(j1);
 					           }
 					       }
 				'''
 			]
-		]*/
+		]
 		val s = interfaceUsed.type as InterfaceDeclaration
 		for (method : s.declaredMethods) {
 
@@ -105,7 +110,6 @@ class ksoapListSerializableCompilationParticipant extends AbstractClassProcessor
 	}
 
 	def typeConverted(TypeReference reference, String paramName) {
-
 		switch (reference.simpleName) {
 			case "Boolean":
 				"Boolean.parseBoolean(" + paramName + ".toString())"
@@ -121,6 +125,10 @@ class ksoapListSerializableCompilationParticipant extends AbstractClassProcessor
 				"Double.parseDouble(" + paramName + ".toString())"
 			case "Date":
 				"utils.DatesUtils.parses(" + paramName + ".toString())"
+			case "Character":
+				paramName + ".toString().charAt(0)"
+			case "byte[]":
+				"org.kobjects.base64.Base64.decode(" + paramName + ".toString())"
 			default:
 				"(" + reference.simpleName + ")" + paramName
 		}
