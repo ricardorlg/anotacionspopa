@@ -27,7 +27,7 @@ class ksoapSerializableCompilationParticipant extends AbstractClassProcessor {
 		val interfaceUsed = KvmSerializable.newTypeReference
 		val serializable = Serializable.newTypeReference()
 		clazz.implementedInterfaces = clazz.implementedInterfaces + #[interfaceUsed, serializable]
-
+/*
 		clazz.addConstructor [
 			addParameter("object", SoapObject.newTypeReference())
 			body = [
@@ -53,7 +53,7 @@ class ksoapSerializableCompilationParticipant extends AbstractClassProcessor {
 					«ENDFOR»
 				'''
 			]
-		]
+		]*/
 		val s = interfaceUsed.type as InterfaceDeclaration
 		for (method : s.declaredMethods) {
 
