@@ -45,8 +45,13 @@ for (method : s.declaredMethods) {
 						«IF clazz.declaredFields.nullOrEmpty»
 						return 0;
 							«ELSE»
-							return «clazz.declaredFields.size»;
+							«IF clazz.extendedClass!=Object.newTypeReference()»
+							int count=super.getPropertyCount();
+							«ELSE»
+							int count=0;
 							«ENDIF»
+							return «clazz.declaredFields.size»+count;
+						«ENDIF»
 						''']
 				]
 			} else if (method.simpleName.equalsIgnoreCase("getProperty")) {
@@ -61,14 +66,23 @@ for (method : s.declaredMethods) {
 						«IF clazz.declaredFields.nullOrEmpty»
 						return null;
 							«ELSE»
-							switch (index){
+								«IF clazz.extendedClass!=Object.newTypeReference()»
+								int count=super.getPropertyCount();
+								«ELSE»
+								int count=0;
+								«ENDIF»
+						
 								«FOR i : 0 .. clazz.declaredFields.size - 1»
-									case «i»:	
-										return «clazz.declaredFields.toList.get(i).simpleName»;
+								if(index==count+«i»){
+									return «clazz.declaredFields.toList.get(i).simpleName»;
+								}	
 								«ENDFOR»
-							}
-							return null;
-							«ENDIF»
+								«IF clazz.extendedClass!=Object.newTypeReference()»
+								return super.getProperty(index);
+								«ELSE»
+								return null;
+								«ENDIF»
+						«ENDIF»
 						''']
 				]
 			} else if (method.simpleName.equalsIgnoreCase("getPropertyInfo")) {
@@ -81,16 +95,22 @@ for (method : s.declaredMethods) {
 					
 						'''
 						«IF !clazz.declaredFields.nullOrEmpty»
-							switch (arg0){
+								«IF clazz.extendedClass!=Object.newTypeReference()»
+								int count=super.getPropertyCount();
+								«ELSE»
+								int count=0;
+								«ENDIF»
 								«FOR i : 0 .. clazz.declaredFields.size - 1»
-									case «i»:	
+								if(arg0==count+«i»){
 									arg2.type=«toJavaCode(clazz.declaredFields.toList.get(i).type.wrapperIfPrimitive)».class;
 									arg2.name="«clazz.declaredFields.toList.get(i).simpleName.replace('_', '')»";
-									break;	
+									}
 								«ENDFOR»
-								default:break;
-							}
-															«ENDIF»
+								«IF clazz.extendedClass!=Object.newTypeReference()»
+								super.getPropertyInfo(arg0,arg1,arg2);
+								«ENDIF»
+								
+						«ENDIF»
 							
 						''']
 				]
@@ -104,17 +124,23 @@ for (method : s.declaredMethods) {
 						
 						'''
 								«IF !clazz.declaredFields.nullOrEmpty»
-
-							switch (arg0){
+									«IF clazz.extendedClass!=Object.newTypeReference()»
+									int count=super.getPropertyCount();
+									«ELSE»
+									int count=0;
+									«ENDIF»
+									
 									«FOR i : 0 .. clazz.declaredFields.size - 1»
+									if(arg0==count+«i»){
 										«var fieldName = clazz.declaredFields.toList.get(i).simpleName»
 										«var fieldType = clazz.declaredFields.toList.get(i).type»
-											case «i»:	
-											this.«fieldName»=«typeConverted(fieldType.wrapperIfPrimitive, 'arg1')»;
-											break;	
+										this.«fieldName»=«typeConverted(fieldType.wrapperIfPrimitive, 'arg1')»;
+										}
 									«ENDFOR»
-									}
+									«IF clazz.extendedClass!=Object.newTypeReference()»
+									super.setProperty(arg0,arg1);
 									«ENDIF»
+								«ENDIF»
 						''']
 				]
 			}
