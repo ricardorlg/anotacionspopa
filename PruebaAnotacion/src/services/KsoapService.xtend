@@ -6,6 +6,13 @@ import org.eclipse.xtend.lib.macro.TransformationContext
 import org.eclipse.xtend.lib.macro.declaration.MutableClassDeclaration
 import org.eclipse.xtend.lib.macro.declaration.Visibility
 import org.ksoap2.serialization.SoapObject
+import org.ksoap2.serialization.PropertyInfo
+import org.ksoap2.serialization.SoapSerializationEnvelope
+import org.ksoap2.SoapEnvelope
+import org.ksoap2.transport.HttpTransportSE
+import org.ksoap2.SoapFault
+import org.ksoap2.transport.HttpResponseException
+import java.io.IOException
 
 @Active(typeof(KsoapServiceCompilationParticipant))
 annotation KsoapService {
@@ -13,7 +20,7 @@ annotation KsoapService {
 	String NAME_SPACE
 	String METHOD_NAME
 	String[] inputsParametersNames
-	Class[] inputsParametersTypes
+	Class<?>[] inputsParametersTypes
 }
 
 class KsoapServiceCompilationParticipant extends AbstractClassProcessor {
@@ -28,6 +35,7 @@ class KsoapServiceCompilationParticipant extends AbstractClassProcessor {
 		clazz.addMethod("Execute") [
 			visibility = Visibility.PUBLIC
 			returnType = SoapObject.newTypeReference
+			exceptions=#[Exception.newTypeReference()]
 			val clases = getArrayClassValue(clazz, context, "inputsParametersTypes")
 			val nombres = getArrayStringValue(clazz, context, "inputsParametersNames")
 			if (clases.size != nombres.size) {
@@ -36,12 +44,46 @@ class KsoapServiceCompilationParticipant extends AbstractClassProcessor {
 
 			}
 			for (i : 0 .. clases.size - 1) {
-				
+
 				addParameter(nombres.get(i), clases.get(i))
 
 			}
 			body = [
-				'''return null;'''
+				'''
+					«toJavaCode(SoapObject.newTypeReference())» request = new SoapObject(NAME_SPACE,METHOD_NAME);
+					«FOR i : 0 .. clases.size - 1»
+						«toJavaCode(PropertyInfo.newTypeReference())» propertyInfo«i» = new PropertyInfo();
+						propertyInfo«i».setName("«nombres.get(i)»");
+						propertyInfo«i».setValue(«nombres.get(i)»);
+						propertyInfo«i».setType(«clases.get(i).simpleName».class);
+						request.addProperty(propertyInfo«i»);
+					«ENDFOR»
+					«toJavaCode(SoapSerializationEnvelope.newTypeReference())» envelope = new SoapSerializationEnvelope(«toJavaCode(
+						SoapEnvelope.newTypeReference())».VER11);
+						//Log.i("REQUEST--->", transp.requestDump)
+						//Log.i("RESPONSE--->", transp.responseDump)
+					envelope.setOutputSoapObject(request);
+					try {
+						«toJavaCode(HttpTransportSE.newTypeReference())» transp = new HttpTransportSE(URL, 6000);
+						transp.debug = true;
+						transp.call(NAME_SPACE + METHOD_NAME, envelope);
+						Object result = envelope.bodyIn;
+						SoapObject _retObject = (SoapObject) result;
+						if (result instanceof «toJavaCode(SoapFault.newTypeReference())») {
+							SoapFault fault = (SoapFault) result;
+							throw new Exception(fault.toString());
+							}
+						transp.reset();
+						return _retObject;
+					} catch («toJavaCode(HttpResponseException.newTypeReference())» ex2) {
+							//Log.d("spopaerror", "error de conexion")
+							throw ex2;
+						} catch («toJavaCode(IOException.newTypeReference())» ex) {
+							//Log.d("spopaerror", "otro error")
+							throw ex;
+						}
+					
+				'''
 			]
 		]
 	}
@@ -83,7 +125,7 @@ class KsoapServiceCompilationParticipant extends AbstractClassProcessor {
 
 		val value = annotatedClass.annotations.findFirst [
 			annotationTypeDeclaration == KsoapService.newTypeReference.type
-		].getValue(propertyName) 
+		].getValue(propertyName)
 
 		if(value == null) return null
 
