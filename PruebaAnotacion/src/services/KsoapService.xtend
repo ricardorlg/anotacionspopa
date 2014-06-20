@@ -13,6 +13,8 @@ import org.ksoap2.transport.HttpTransportSE
 import org.ksoap2.SoapFault
 import org.ksoap2.transport.HttpResponseException
 import java.io.IOException
+import org.eclipse.xtend.lib.macro.declaration.TypeReference
+import org.ksoap2.serialization.SoapPrimitive
 
 @Active(typeof(KsoapServiceCompilationParticipant))
 annotation KsoapService {
@@ -21,13 +23,17 @@ annotation KsoapService {
 	String METHOD_NAME
 	String[] inputsParametersNames
 	Class<?>[] inputsParametersTypes
+	Class<?> typeReturn
 }
 
 class KsoapServiceCompilationParticipant extends AbstractClassProcessor {
+	var validTypes = #['Boolean', 'Long', 'Integer', 'String', 'Float', 'Double', 'Date', 'byte[]', 'Character']
 
 	override doTransform(MutableClassDeclaration clazz, extension TransformationContext context) {
 		createFields(clazz, context)
+
 		createServiceConsumeMethod(clazz, context)
+		createServiceMethod(clazz, context)
 	}
 
 	def createServiceConsumeMethod(MutableClassDeclaration clazz, extension TransformationContext context) {
@@ -35,7 +41,7 @@ class KsoapServiceCompilationParticipant extends AbstractClassProcessor {
 		clazz.addMethod("Execute") [
 			visibility = Visibility.PUBLIC
 			returnType = SoapObject.newTypeReference
-			exceptions=#[Exception.newTypeReference()]
+			exceptions = #[Exception.newTypeReference()]
 			val clases = getArrayClassValue(clazz, context, "inputsParametersTypes")
 			val nombres = getArrayStringValue(clazz, context, "inputsParametersNames")
 			if (clases.size != nombres.size) {
@@ -64,6 +70,7 @@ class KsoapServiceCompilationParticipant extends AbstractClassProcessor {
 						//Log.i("RESPONSE--->", transp.responseDump)
 					envelope.setOutputSoapObject(request);
 					try {
+						
 						«toJavaCode(HttpTransportSE.newTypeReference())» transp = new HttpTransportSE(URL, 6000);
 						transp.debug = true;
 						transp.call(NAME_SPACE + METHOD_NAME, envelope);
@@ -83,6 +90,42 @@ class KsoapServiceCompilationParticipant extends AbstractClassProcessor {
 							throw ex;
 						}
 					
+				'''
+			]
+		]
+
+	}
+
+	def createServiceMethod(MutableClassDeclaration clazz, extension TransformationContext context) {
+		val method_name = getStringValue(clazz, context, "METHOD_NAME")
+		val returnedType = getClassValue(clazz, context, "typeReturn")
+		clazz.addMethod('do' + method_name.toLowerCase.toFirstUpper) [
+			visibility = Visibility.PUBLIC
+			returnType = returnedType
+			exceptions = #[Exception.newTypeReference()]
+			val clases = getArrayClassValue(clazz, context, "inputsParametersTypes")
+			val nombres = getArrayStringValue(clazz, context, "inputsParametersNames")
+			if (clases.size != nombres.size) {
+				clazz.annotations.head.addError(
+					"Error parametros no iguales nombres y tipos deben tener la misma dimension")
+
+			}
+			for (i : 0 .. clases.size - 1) {
+
+				addParameter(nombres.get(i), clases.get(i))
+
+			}
+			body = [
+				'''
+					
+					«IF validTypes.contains(returnedType.simpleName)»
+						Object rpta=Execute(«nombres.toString.replace('[', '').replace(']', '')»);
+						«toJavaCode(SoapPrimitive.newTypeReference)» primitive = (SoapPrimitive) rpta;
+						return «typeConverted(returnedType, 'primitive')»;
+					«ELSE»
+						SoapObject rpta=Execute(«nombres.toString.replace('[', '').replace(']', '')»);
+						return new «toJavaCode(returnedType)» (rpta);
+					«ENDIF»
 				'''
 			]
 		]
@@ -141,5 +184,41 @@ class KsoapServiceCompilationParticipant extends AbstractClassProcessor {
 		if(value == null) return null
 
 		return value
+	}
+
+	def TypeReference getClassValue(MutableClassDeclaration annotatedClass, extension TransformationContext context,
+		String propertyName) {
+		val value = annotatedClass.annotations.findFirst [
+			annotationTypeDeclaration == KsoapService.newTypeReference.type
+		].getValue(propertyName)
+
+		if(value == null) return null
+
+		return value as TypeReference
+	}
+
+	def typeConverted(TypeReference reference, String paramName) {
+		switch (reference.simpleName) {
+			case "Boolean":
+				"Boolean.parseBoolean(" + paramName + ".toString())"
+			case "Long":
+				"Long.parseLong(" + paramName + ".toString())"
+			case "Integer":
+				"Integer.parseInt(" + paramName + ".toString())"
+			case "String":
+				paramName + ".toString()"
+			case "Float":
+				"Float.parseFloat(" + paramName + ".toString())"
+			case "Double":
+				"Double.parseDouble(" + paramName + ".toString())"
+			case "Date":
+				"utils.DatesUtils.parses(" + paramName + ".toString())"
+			case "Character":
+				paramName + ".toString().charAt(0)"
+			case "byte[]":
+				"org.kobjects.base64.Base64.decode(" + paramName + ".toString())"
+			default:
+				"(" + reference.simpleName + ")" + paramName
+		}
 	}
 }
