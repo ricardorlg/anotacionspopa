@@ -15,6 +15,7 @@ import org.ksoap2.transport.HttpResponseException
 import java.io.IOException
 import org.eclipse.xtend.lib.macro.declaration.TypeReference
 import org.ksoap2.serialization.SoapPrimitive
+import org.ksoap2.serialization.MarshalDate
 
 @Active(typeof(KsoapServiceCompilationParticipant))
 annotation KsoapService {
@@ -69,6 +70,7 @@ class KsoapServiceCompilationParticipant extends AbstractClassProcessor {
 						//Log.i("REQUEST--->", transp.requestDump)
 						//Log.i("RESPONSE--->", transp.responseDump)
 					envelope.setOutputSoapObject(request);
+					new «toJavaCode(MarshalDate.newTypeReference())»().register(envelope);
 					try {
 						
 						«toJavaCode(HttpTransportSE.newTypeReference())» transp = new HttpTransportSE(URL, 6000);
@@ -119,9 +121,15 @@ class KsoapServiceCompilationParticipant extends AbstractClassProcessor {
 				'''
 					
 					«IF validTypes.contains(returnedType.simpleName)»
-						Object rpta=Execute(«nombres.toString.replace('[', '').replace(']', '')»);
-						«toJavaCode(SoapPrimitive.newTypeReference)» primitive = (SoapPrimitive) rpta;
-						return «typeConverted(returnedType, 'primitive')»;
+						SoapObject rpta=Execute(«nombres.toString.replace('[', '').replace(']', '')»);
+						Object obj = rpta.getProperty("return");
+						if (obj != null && obj.getClass().equals(SoapPrimitive.class))
+						{
+						«toJavaCode(SoapPrimitive.newTypeReference)» j =(SoapPrimitive) rpta.getProperty("return");
+						return «typeConverted(returnedType, 'j')»;
+						}
+						return null;
+
 					«ELSE»
 						SoapObject rpta=Execute(«nombres.toString.replace('[', '').replace(']', '')»);
 						return new «toJavaCode(returnedType)» (rpta);
