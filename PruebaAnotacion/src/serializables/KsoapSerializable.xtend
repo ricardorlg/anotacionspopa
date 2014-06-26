@@ -12,6 +12,7 @@ import org.eclipse.xtend.lib.macro.declaration.TypeReference
 import org.ksoap2.serialization.KvmSerializable
 import org.ksoap2.serialization.SoapObject
 import org.ksoap2.serialization.SoapPrimitive
+import java.util.List
 
 @Active(typeof(ksoapSerializableCompilationParticipant))
 annotation KsoapSerializable {
@@ -22,6 +23,12 @@ class ksoapSerializableCompilationParticipant extends AbstractClassProcessor {
 	override doRegisterGlobals(ClassDeclaration annotatedClass, extension RegisterGlobalsContext context) {
 	}
 
+	override doTransform(List<? extends MutableClassDeclaration> annotatedClasses, extension TransformationContext context) {
+	for(clazz:annotatedClasses){
+		doTransform(clazz,context)
+	}
+	}
+	
 	override doTransform(MutableClassDeclaration clazz, extension TransformationContext context) {
 		val interfaceUsed = KvmSerializable.newTypeReference
 		val serializable = Serializable.newTypeReference()
